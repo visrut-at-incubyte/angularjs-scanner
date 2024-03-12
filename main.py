@@ -27,7 +27,7 @@ def find_files(base_dir: str, file_pattern: str, ignore_patterns: List[str]) -> 
                 matches.append(file_path)
     return matches
 
-def categorize_files(file_paths: List[str]) -> List[Dict[str, str]]:
+def categorize_js_files(file_paths: List[str]) -> List[Dict[str, str]]:
     categorized_files = []
     
     patterns = {
@@ -45,11 +45,21 @@ def categorize_files(file_paths: List[str]) -> List[Dict[str, str]]:
             loc = len(content.split('\n'))
             for type_name, pattern in patterns.items():
                 if pattern.search(content):
-                    categorized_files.append({'path': path, 'type': type_name, 'loc': loc, 'content': content})
+                    categorized_files.append({'path': os.path.relpath(path, PROJECT_DIR), 'type': type_name, 'loc': loc, 'content': content})
     
     return categorized_files
 
-js_files = categorize_files(find_files(PROJECT_DIR, "*.js", IGNORE_DIR_PATTERNS))
+def categorize_html_files(file_paths: List[str]) -> List[Dict[str, str]]:
+    categorized_files = []
+    for path in file_paths:
+        with open(path, 'r', encoding='utf-8') as file:
+            content = file.read()
+            loc = len(content.split('\n'))
+            categorized_files.append({'path': os.path.relpath(path, PROJECT_DIR), 'type': 'html', 'loc': loc, 'content': content})
+    return categorized_files
+
+js_files = categorize_js_files(find_files(PROJECT_DIR, "*.js", IGNORE_DIR_PATTERNS))
+html_files = categorize_html_files(find_files(PROJECT_DIR, "*.html", IGNORE_DIR_PATTERNS))
 
 def get_overview(files: List[Dict[str, str]]) -> Dict[str, int]:
     # count total number of services, controllers, directives, etc.
@@ -58,5 +68,12 @@ def get_overview(files: List[Dict[str, str]]) -> Dict[str, int]:
         overview[file['type']] += 1
     return overview
 
-overview = pd.DataFrame(get_overview(js_files).items(), columns=['Type', 'Count'])
-print(overview.to_string(index=False))
+if __name__ == "__main__":
+    overview = pd.DataFrame(get_overview(js_files + html_files).items(), columns=['Type', 'Count'])
+
+    print("Overview of the AngularJS project:")
+    print(overview.to_string(index=False))
+    print("----------------------------------")
+    codebase = pd.DataFrame(js_files + html_files)
+    codebase.drop(columns=['content'], inplace=True)
+    print(codebase.to_string(index=False))
