@@ -5,6 +5,8 @@ IGNORE_DIR_PATTERNS = str("**/node_modules/**,**/dist/**,**/*.min.js,**/.sonarqu
 import os
 import re
 import fnmatch
+import pandas as pd
+from collections import defaultdict
 
 # types
 from typing import List, Dict
@@ -30,10 +32,10 @@ def categorize_files(file_paths: List[str]) -> List[Dict[str, str]]:
     
     patterns = {
         'module': re.compile(r'angular\s*\.\s*module\([\'"]([^\'"]+)[\'"],\s*\[[^\]]*?\]\)', re.DOTALL),
-        'controller': re.compile(r'\.controller\([\'"]([^\'"]+)[\'"],(\s*\[.*?,)?\s*function', re.DOTALL),
-        'service': re.compile(r'\.service\([\'"]([^\'"]+)[\'"],(\s*\[.*?,)?\s*function', re.DOTALL),
-        'directive': re.compile(r'\.directive\([\'"]([^\'"]+)[\'"],(\s*\[.*?,)?\s*function', re.DOTALL),
-        'factory': re.compile(r'\.factory\([\'"]([^\'"]+)[\'"],(\s*\[.*?,)?\s*function', re.DOTALL),
+        'controller': re.compile(r'\.controller\([\'"]([^\'"]+)[\'"],(\s*\[[^,]*,)?\s*function', re.DOTALL),
+        'service': re.compile(r'\.service\([\'"]([^\'"]+)[\'"],(\s*\[[^,]*,)?\s*function', re.DOTALL),
+        'directive': re.compile(r'\.directive\([\'"]([^\'"]+)[\'"],(\s*\[[^,]*,)?\s*function', re.DOTALL),
+        'factory': re.compile(r'\.factory\([\'"]([^\'"]+)[\'"],(\s*\[[^,]*,)?\s*function', re.DOTALL),
         'value': re.compile(r'\.value\([\'"]([^\'"]+)[\'"],\s*\[[^\]]*?\]\)', re.DOTALL)
     }
 
@@ -48,4 +50,13 @@ def categorize_files(file_paths: List[str]) -> List[Dict[str, str]]:
     return categorized_files
 
 js_files = categorize_files(find_files(PROJECT_DIR, "*.js", IGNORE_DIR_PATTERNS))
-print(len(js_files))
+
+def get_overview(files: List[Dict[str, str]]) -> Dict[str, int]:
+    # count total number of services, controllers, directives, etc.
+    overview = defaultdict(int)
+    for file in files:
+        overview[file['type']] += 1
+    return overview
+
+overview = pd.DataFrame(get_overview(js_files).items(), columns=['Type', 'Count'])
+print(overview.to_string(index=False))
