@@ -49,6 +49,29 @@ def categorize_js_files(file_paths: List[str]) -> List[Dict[str, str]]:
     
     return categorized_files
 
+def categorize_cofee_script_files(file_paths: List[str]) -> List[Dict[str, str]]:
+    categorized_files = []
+    
+    patterns = {
+        'module': re.compile(r'angular\.module\s*\[?[\'"]([^\'"]+)[\'"]\s*,\s*\[[^\]]*\]', re.DOTALL),
+        'controller': re.compile(r'\.controller\s*\([\'"]([^\'"]+)[\'"]\s*,(\s*[^>]*)?\s*.', re.DOTALL),
+        'service': re.compile(r'\.service\s*\([\'"]([^\'"]+)[\'"]\s*,(\s*[^>]*)?\s*.', re.DOTALL),
+        'directive': re.compile(r'\.directive\s*\([\'"]([^\'"]+)[\'"]\s*,(\s*[^>]*)?\s*.', re.DOTALL),
+        'factory': re.compile(r'\.factory\s*\([\'"]([^\'"]+)[\'"]\s*,(\s*[^>]*)?\s*.', re.DOTALL),
+        'value': re.compile(r'\.value\s*\([\'"]([^\'"]+)[\'"]\s*,(\s*[^>]*)?\s*.', re.DOTALL),
+        'constant': re.compile(r'\.constant\s*\([\'"]([^\'"]+)[\'"]\s*,(\s*[^>]*)?\s*.', re.DOTALL),
+    }
+
+    for path in file_paths:
+        with open(path, 'r', encoding='utf-8') as file:
+            content = file.read()
+            loc = len(content.split('\n'))
+            for type_name, pattern in patterns.items():
+                if pattern.search(content):
+                    categorized_files.append({'path': os.path.relpath(path, PROJECT_DIR), 'type': type_name, 'loc': loc, 'content': content})
+    
+    return categorized_files
+
 def categorize_html_files(file_paths: List[str]) -> List[Dict[str, str]]:
     categorized_files = []
     for path in file_paths:
@@ -59,6 +82,7 @@ def categorize_html_files(file_paths: List[str]) -> List[Dict[str, str]]:
     return categorized_files
 
 js_files = categorize_js_files(find_files(PROJECT_DIR, "*.js", IGNORE_DIR_PATTERNS))
+cofee_script_files = categorize_cofee_script_files(find_files(PROJECT_DIR, "*.coffee", IGNORE_DIR_PATTERNS))
 html_files = categorize_html_files(find_files(PROJECT_DIR, "*.html", IGNORE_DIR_PATTERNS))
 
 def get_overview(files: List[Dict[str, str]]) -> Dict[str, int]:
@@ -69,11 +93,10 @@ def get_overview(files: List[Dict[str, str]]) -> Dict[str, int]:
     return overview
 
 if __name__ == "__main__":
-    overview = pd.DataFrame(get_overview(js_files + html_files).items(), columns=['Type', 'Count'])
-
+    overview = pd.DataFrame(get_overview(js_files + html_files + cofee_script_files).items(), columns=['Type', 'Count'])
     print("Overview of the AngularJS project:")
     print(overview.to_string(index=False))
     print("----------------------------------")
-    codebase = pd.DataFrame(js_files + html_files)
-    codebase.drop(columns=['content'], inplace=True)
-    print(codebase.to_string(index=False))
+    codebase = pd.DataFrame(js_files + html_files + cofee_script_files)
+    codebase = codebase.drop(columns=['content'])
+    codebase.to_csv("codebase.csv", index=False)
