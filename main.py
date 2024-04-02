@@ -1,5 +1,5 @@
-PROJECT_DIR = "C:\\Users\\DELL\\Desktop\\stackstore"
-IGNORE_DIR_PATTERNS = str("**/node_modules/**,**/dist/**,**/*.min.js,**/.sonarqube/**,.git/**").split(",")
+PROJECT_DIR = "C:\\Users\\DELL\\Desktop\\turvo-work"
+IGNORE_DIR_PATTERNS = str("**/node_modules/**,**/dist/**,**/*.min.js,**/.sonarqube/**,.git/**,**/vendor/**,**/bundles/**,**/app-ng2/**,**app/bootstrap.js**").split(",")
 
 # imports
 import os
@@ -81,8 +81,26 @@ def categorize_html_files(file_paths: List[str]) -> List[Dict[str, str]]:
             categorized_files.append({'path': os.path.relpath(path, PROJECT_DIR), 'type': 'html', 'loc': loc, 'content': content})
     return categorized_files
 
-js_files = categorize_js_files(find_files(PROJECT_DIR, "*.js", IGNORE_DIR_PATTERNS))
-cofee_script_files = categorize_cofee_script_files(find_files(PROJECT_DIR, "*.coffee", IGNORE_DIR_PATTERNS))
+def count_loc_for_building_blocks(file_paths: List[str]) -> List[Dict[str, str]]:
+    building_blocks = []
+
+    for path in file_paths:
+        with open(path, 'r', encoding='utf-8') as file:
+            content = file.read()
+            l = re.split(r'\.(directive|decorator|controller|service|factory|constant|component|filter)\s*\([\'"][^\'"]+[\'"]\s*,\s*[^>]*?\s*.', content, re.DOTALL)
+            
+            try:
+                for i in range(len(l)):
+                    if l[i] in 'directive|decorator|controller|service|factory|constant|component|filter':
+                        building_blocks.append({ 'type': l[i], 'loc': len(l[i+1].split('\n')), 'path': path })
+            except IndexError:
+                print(f"L: {l}")
+                print(l[i-1], l[i])
+                pass
+
+    return building_blocks
+
+js_and_coffee_files = count_loc_for_building_blocks(find_files(PROJECT_DIR, "*.js", IGNORE_DIR_PATTERNS) + find_files(PROJECT_DIR, "*.coffee", IGNORE_DIR_PATTERNS))
 html_files = categorize_html_files(find_files(PROJECT_DIR, "*.html", IGNORE_DIR_PATTERNS))
 
 def get_overview(files: List[Dict[str, str]]) -> Dict[str, int]:
@@ -93,10 +111,10 @@ def get_overview(files: List[Dict[str, str]]) -> Dict[str, int]:
     return overview
 
 if __name__ == "__main__":
-    overview = pd.DataFrame(get_overview(js_files + html_files + cofee_script_files).items(), columns=['Type', 'Count'])
+    overview = pd.DataFrame(get_overview(js_and_coffee_files + html_files).items(), columns=['Type', 'Count'])
     print("Overview of the AngularJS project:")
     print(overview.to_string(index=False))
     print("----------------------------------")
-    codebase = pd.DataFrame(js_files + html_files + cofee_script_files)
+    codebase = pd.DataFrame(js_and_coffee_files + html_files)
     codebase = codebase.drop(columns=['content'])
     codebase.to_csv("codebase.csv", index=False)
